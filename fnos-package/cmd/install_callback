@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# 安装完成后（fnOS 已把应用文件写入 TRIM_APPDEST）
+#
+# 做三件事：准备运行期数据目录、记安装日志、确保服务是起来的。
+#
+# 关于最后一件：应用中心通常会在安装末尾自行调用 `main start`，但那一步
+# 失败时它未必会提示，用户看到的就是"装好了但显示已停用"。
+# 这里主动拉一次（cmd/main 是幂等的，已经在跑就什么都不做）。
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+APP_BASE="$(dirname "$SCRIPT_DIR")"
+export PATH=/var/apps/nodejs_v22/target/bin:$PATH
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+LOG_FILE="$PKGVAR/app.log"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [install_callback] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+touch "$LOG_FILE" 2>/dev/null
+
+# 清理可能残留的 PID（覆盖安装 / 重装场景）
+rm -f "${PKGVAR}/app.pid" 2>/dev/null
+
+log_msg "安装完成：版本 ${TRIM_APPVER:-未知}，应用目录 ${TRIM_APPDEST:-未知}"
+
+# 确认装的是 root 权限版。
+# 正常包不该出现非 root 的情况（build-fpk 会拦住），这里留一条明确日志便于排障。
+PRIVILEGE="${APP_BASE}/config/privilege"
+if [ ! -f "$PRIVILEGE" ]; then
+  PRIVILEGE="${TRIM_APPDEST:-}/config/privilege"
+fi
+
+if grep -q '"run-as"[[:space:]]*:[[:space:]]*"root"' "$PRIVILEGE" 2>/dev/null; then
+  log_msg "root 权限版：进程以 root 运行，可直接读取全部存储空间，不需要授权任何目录。"
+else
+  log_msg "⚠ 未检测到 run-as: root，本应用需要 root 才能读取用户文件，请确认包未被改动。"
+fi
+
+# 预览组件是否完整 —— 缺了它应用能起、但什么都预览不了，值得在装完就点出来
+VENDOR="${APP_BASE}/server/vendor/dist/flyfish-file-viewer-web-full.iife.js"
+if [ -f "$VENDOR" ]; then
+  log_msg "预览组件已就位：$VENDOR"
+else
+  log_msg "⚠ 预览组件缺失：$VENDOR —— 应用只能浏览文件，无法预览。"
+fi
+
+MAIN="${SCRIPT_DIR}/main"
+if [ -x "$MAIN" ]; then
+  if "$MAIN" start >> "$LOG_FILE" 2>&1; then
+    log_msg "安装后服务已启动"
+  else
+    log_msg "安装后自动启动未成功，可到应用中心手动点启动（日志：$LOG_FILE）"
+  fi
+fi
+
+# 应用中心只会按 manifest 给第三方包建 iframe 型服务，我们要的「用浏览器打开」
+# 得自己改库。详见 cmd/fix-open-type 里的长注释（含前端 dispatch 源码）。
+FIX="${SCRIPT_DIR}/fix-open-type"
+if [ -x "$FIX" ]; then
+  "$FIX" >> "$LOG_FILE" 2>&1
+fi
+
+echo "文件预览安装完成：在文件管理器里双击文件，选「用文件预览打开」即可，不需要配置授权目录。"
+exit 0
