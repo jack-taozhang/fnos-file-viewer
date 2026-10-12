@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文件预览</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<!--
+  本页面只有一个职责：把「飞牛文件管理器 / 桌面双击」传来的 ?path= 文件预览出来。
+
+  ★ 刻意**没有**文件浏览侧栏：
+      · 应用已经被收窄成纯粹的"打开方式"（桌面图标已取消），
+        再放一个文件树就等于在应用里复刻一个只读的文件管理器，职责重叠；
+      · 也就没有了"应用内部再套一层导航"的问题。
+
+  飞牛会以 ?path=<绝对路径> 把文件传进来（见 gen-ui-config.mjs 的 url 型入口）。
+-->
+<div id="app">
+  <main id="main">
+    <!--
+      ★ 刻意**没有顶栏**（连文件名标题、下载、重载、主题切换都不要）：
+          · 本应用是 url 型入口 —— 由浏览器新标签页打开，浏览器本身就有地址栏、
+            刷新、下载、新标签页这些控件，页面再摆一条自己的顶栏纯属重复；
+          · 顶栏里那点信息（文件名/大小/类型）在预览组件自己的工具栏上也能看到，
+            而预览组件是铺满整页的，不该被一条无关的横条挤掉高度；
+          · 明暗主题跟随预览组件默认值，不再提供手动开关。
+
+      于是整页只剩一件事：把文件渲染出来。没有侧栏、没有顶栏、没有嵌套 iframe。
+    -->
+    <section id="stage">
+      <div id="viewer-host"></div>
+
+      <!-- 未带 ?path= 时的说明页（比如有人手动敲了地址） -->
+      <div id="empty" class="overlay">
+        <div class="empty-card">
+          <svg viewBox="0 0 24 24" width="46" height="46" aria-hidden="true"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13 3v6h6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          <h2>没有指定要预览的文件</h2>
+          <p>本应用只用来打开文件：在飞牛的「文件管理」里双击（或右键选「用文件预览打开」）任意文件即可。</p>
+          <p class="hint" id="empty-hint"></p>
+        </div>
+      </div>
+
+      <div id="error" class="overlay hidden">
+        <div class="error-card">
+          <h2 id="err-title">打不开这个文件</h2>
+          <p id="err-msg"></p>
+          <p class="err-path" id="err-path"></p>
+          <div class="err-actions">
+            <button id="btn-err-download" class="btn" type="button">仍然下载</button>
+            <button id="btn-err-doctor" class="btn ghost" type="button">看诊断信息</button>
+          </div>
+          <pre id="err-doctor" class="doctor hidden"></pre>
+        </div>
+      </div>
+
+      <div id="loading" class="overlay hidden">
+        <div class="spinner" role="status" aria-label="加载中"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 预览组件（file-viewer 的 web-full IIFE）
+     必须用真正的 <script src> 引入：组件会通过 document.currentScript 的地址
+     推导 renderer / worker / wasm 的资源基址（本应用里就是 /file-viewer/dist/）。
+     动态 createElement 注入也能拿到 currentScript，但静态引入更直观、且没有时序问题。 -->
+<script src="/file-viewer/dist/flyfish-file-viewer-web-full.iife.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
