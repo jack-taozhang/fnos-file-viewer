@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# 卸载完成后：收尾清理
+#
+# 只清运行期残留（PID、日志），不动用户数据目录，更不动用户的任何文件。
+
+set -u
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+
+rm -f "${PKGVAR}/app.pid" 2>/dev/null
+rm -f "${PKGVAR}/app.log" 2>/dev/null
+rmdir "$PKGVAR" 2>/dev/null
+
+echo "文件预览已卸载。"
+exit 0
