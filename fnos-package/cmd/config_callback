@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# 用户在应用设置里点「保存」之后调用。这里负责把服务**重新拉起来**，
+# 让新的设置立刻生效。
+#
+# 为什么必须显式重启：飞牛在应用设置变更时会先停掉应用（为了避免旧进程
+# 还拿着旧的环境变量），而它自己不保证再启动。没有这个回调时，
+# "改个设置 → 保存 → 应用变成已停用"就是这么来的。
+#
+# 幂等：先停（可能已经停了）、再起（起得来就返回 0）。
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+export PATH=/var/apps/nodejs_v22/target/bin:$PATH
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+LOG_FILE="$PKGVAR/app.log"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [config_callback] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+touch "$LOG_FILE" 2>/dev/null
+
+# 保存设置时也复查一次「打开方式」的类型。
+# 为什么：升级/覆盖安装、或者用户在应用中心动过什么，都可能把服务行重置回
+# iframe 型（应用中心自己建服务时只会写 iframe）。这里顺手拉回 url 型，
+# 保证「双击文件 → 用浏览器打开」这条路径不会莫名其妙失效。
+FIX="${SCRIPT_DIR}/fix-open-type"
+if [ -x "$FIX" ]; then
+  "$FIX" >> "$LOG_FILE" 2>&1
+fi
+
+MAIN="${SCRIPT_DIR}/main"
+if [ -x "$MAIN" ]; then
+  log_msg "设置已保存，交由 cmd/main 重启"
+  "$MAIN" stop >> "$LOG_FILE" 2>&1
+  if "$MAIN" start >> "$LOG_FILE" 2>&1; then
+    log_msg "设置已生效，服务已重新启动"
+    exit 0
+  fi
+  log_msg "重启失败，请看日志：$LOG_FILE"
+  printf '%s' "文件预览：设置已保存，但应用启动失败，请查看日志 $LOG_FILE" > "${TRIM_TEMP_LOGFILE:-/dev/null}"
+  exit 1
+fi
+
+log_msg "未找到 $MAIN，无法重启，请在应用中心手动停止后再启动"
+exit 0
