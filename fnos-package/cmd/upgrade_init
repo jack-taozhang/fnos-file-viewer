@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# 升级前：如果应用正在运行，先停掉
+#
+# 升级会覆盖 TRIM_APPDEST 下的应用文件，进程还在跑会占用文件；
+# 同时记一个标记，升级完成后好把它重新拉起来。
+
+set -u
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+LOG_FILE="$PKGVAR/app.log"
+PID_FILE="$PKGVAR/app.pid"
+FLAG_FILE="$PKGVAR/.was_running"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [upgrade_init] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+check_process() {
+  kill -0 "$1" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+rm -f "$FLAG_FILE" 2>/dev/null
+
+if [ -f "$PID_FILE" ]; then
+  pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "$pid" ] && check_process "$pid"; then
+    touch "$FLAG_FILE"
+    log_msg "升级前停止服务，pid=${pid}"
+    kill -TERM "$pid" 2>/dev/null
+
+    count=0
+    while check_process "$pid" && [ "$count" -lt 10 ]; do
+      sleep 1
+      count=$((count + 1))
+    done
+
+    check_process "$pid" && kill -KILL "$pid" 2>/dev/null
+  fi
+  rm -f "$PID_FILE"
+fi
+
+log_msg "升级开始：${TRIM_OLD_APPVER:-?} → ${TRIM_APPVER:-?}"
+exit 0
