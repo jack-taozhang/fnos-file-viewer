@@ -1,0 +1,7 @@
+{
+  "defaults": {
+    "run-as": "root"
+  },
+  "username": "fnos-file-viewer",
+  "groupname": "fnos-file-viewer"
+}
