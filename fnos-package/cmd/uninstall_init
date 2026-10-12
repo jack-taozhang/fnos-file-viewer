@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# 卸载前：先把正在运行的服务停掉
+#
+# 不停的话，卸载时删除应用文件会遇到「文件被占用」，
+# 而且残留进程会继续占着服务端口，导致下次安装失败。
+
+set -u
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+LOG_FILE="$PKGVAR/app.log"
+PID_FILE="$PKGVAR/app.pid"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [uninstall_init] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+check_process() {
+  kill -0 "$1" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+
+if [ -f "$PID_FILE" ]; then
+  pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+  if [ -n "$pid" ] && check_process "$pid"; then
+    log_msg "停止服务，pid=${pid}"
+    kill -TERM "$pid" 2>/dev/null
+
+    count=0
+    while check_process "$pid" && [ "$count" -lt 10 ]; do
+      sleep 1
+      count=$((count + 1))
+    done
+
+    if check_process "$pid"; then
+      log_msg "进程未响应 TERM，改用 KILL"
+      kill -KILL "$pid" 2>/dev/null
+    fi
+  fi
+  rm -f "$PID_FILE"
+fi
+
+log_msg "服务已停止，可以安全卸载。"
+exit 0
