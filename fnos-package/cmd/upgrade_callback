@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# 升级完成后：如果升级前应用是运行中的，就把它重新拉起来
+#
+# 启动方式统一交给 cmd/main —— 各处自己拼一遍启动命令，很容易出现
+# "某条路径忘了加 nohup，升级完应用就变已停用"这类问题。
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+export PATH=/var/apps/nodejs_v22/target/bin:$PATH
+
+PKGVAR="${TRIM_PKGVAR:-/tmp/${TRIM_APPNAME:-fnos-file-viewer}}"
+LOG_FILE="$PKGVAR/app.log"
+FLAG_FILE="$PKGVAR/.was_running"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [upgrade_callback] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+touch "$LOG_FILE" 2>/dev/null
+
+MAIN="${SCRIPT_DIR}/main"
+
+if [ -f "$FLAG_FILE" ]; then
+  if [ -x "$MAIN" ]; then
+    # 升级期间应用中心可能已经启动过它，先停掉避免端口占用，再按原状态拉起
+    "$MAIN" stop >> "$LOG_FILE" 2>&1
+    if "$MAIN" start >> "$LOG_FILE" 2>&1; then
+      log_msg "升级后已重启（cmd/main）"
+      rm -f "$FLAG_FILE"
+      log_msg "升级完成：${TRIM_OLD_APPVER:-?} → ${TRIM_APPVER:-?}"
+      exit 0
+    fi
+    log_msg "升级后重启失败，请查看日志：$LOG_FILE"
+    printf '%s' "文件预览升级后启动失败，请查看日志 $LOG_FILE" > "${TRIM_TEMP_LOGFILE:-/dev/null}"
+    rm -f "$FLAG_FILE"
+    exit 1
+  fi
+
+  log_msg "未找到 $MAIN，跳过自动重启（应用中心通常会自行启动）"
+  rm -f "$FLAG_FILE"
+else
+  log_msg "升级完成（升级前服务未运行，保持停止状态）"
+fi
+
+log_msg "升级完成：${TRIM_OLD_APPVER:-?} → ${TRIM_APPVER:-?}"
+
+# 升级会把服务行按 manifest 重建（type 又是 iframe），这里再拉回 url 型，
+# 并重新删掉桌面图标入口。详见 cmd/fix-open-type。
+FIX="${SCRIPT_DIR}/fix-open-type"
+if [ -x "$FIX" ]; then
+  "$FIX" >> "$LOG_FILE" 2>&1
+fi
+
+exit 0
