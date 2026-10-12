@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# 把「打开方式」入口修正成 url 型，并去掉桌面图标入口。
+#
+# ─────────────────────────────────────────────────────────────────────
+# 为什么必须做这一步（真机实测，2026-10-10）
+# ─────────────────────────────────────────────────────────────────────
+# 应用中心对**第三方包**建服务时，`type` 只用 `iframe`，**完全不读**
+# `app/ui/config` 里我们写的 `"type": "url"`。证据：
+#   · `/usr/trim/bin/trim_app_center` 里 iframe 只有 2 处，且是与
+#     hidden/kernel/docker 并列的**字面量常量**；全二进制里**没有 "url" 这个类型常量**。
+#   · 装完查库：5 条服务全是 `type=iframe`（含我们自己写的 url 型）。
+#
+# 而飞牛前端（`/usr/trim/www/assets/index-*.js`）是这么分发的：
+#     E1 = {URL:'url', Iframe:'iframe'}
+#     ...
+#     iframe: e.type === E1.Iframe          // type 是 'iframe' → true
+#   ...
+#     if (e.url && !e.iframe) {
+#       window.open(e.url, '_blank', 'noopener');   // ← 浏览器新标签页打开
+#       return null                                  // ← 不占用桌面窗口
+#     }
+# 也就是说：**服务行的 type 是 'url' ⇒ 用浏览器打开；是 'iframe' ⇒ 嵌在桌面窗口里。**
+# 对照真机：`docker-baota` / `trim.docs.preview` 就是 `url` 型，点开是浏览器新标签页。
+#
+# 桌面图标则另有来源：`app_shortcut`（appcenter 库）+ `entry`（trim_sac 库，
+# `is_display` / `open_type`）。删掉 `.main` 那条入口，图标就没了 —— 真机已验证。
+#
+# ─────────────────────────────────────────────────────────────────────
+# 落库位置：两张库都要改
+#   · appcenter ：app_service（type / url）      app_open / app_shortcut
+#   · trim_sac  ：entry（open_type / is_display） user_desktop_entry
+# ─────────────────────────────────────────────────────────────────────
+# 幂等：重复执行结果一样。改不到就只打日志、不报错 ——
+# 宁可少一个"用浏览器打开"的优化，也不能让安装整体失败。
+# ─────────────────────────────────────────────────────────────────────
+
+set -u
+
+APP_NAME="${TRIM_APPNAME:-fnos-file-viewer}"
+PKGVAR="${TRIM_PKGVAR:-/tmp/${APP_NAME}}"
+LOG_FILE="$PKGVAR/app.log"
+
+log_msg() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - [fix-open-type] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+mkdir -p "$PKGVAR" 2>/dev/null
+touch "$LOG_FILE" 2>/dev/null
+
+# psql 不在 PATH 里（它是 postgres 的家目录下的），直接给绝对路径
+PSQL=""
+for c in /usr/bin/psql /usr/lib/postgresql/*/bin/psql /usr/local/pgsql/bin/psql; do
+  if [ -x "$c" ]; then PSQL="$c"; break; fi
+done
+
+if [ -z "$PSQL" ]; then
+  log_msg "找不到 psql，跳过打开方式类型修正（不影响应用本身使用）"
+  exit 0
+fi
+
+SQL_FILE="$(mktemp /tmp/fnos-file-viewer-fix-XXXXXX.sql 2>/dev/null || echo /tmp/fnos-file-viewer-fix.sql)"
+
+# ── appcenter 库：app_service.type = url，并清掉桌面图标关联 ──
+cat > "$SQL_FILE" <<SQL
+BEGIN;
+UPDATE app_service SET type = 'url', updated_at = now()
+ WHERE app_id = (SELECT id FROM app WHERE app_name = '${APP_NAME}')
+   AND (service_name LIKE '${APP_NAME}.open%');
+DELETE FROM app_shortcut
+ WHERE app_id = (SELECT id FROM app WHERE app_name = '${APP_NAME}');
+DELETE FROM app_open
+ WHERE app_id = (SELECT id FROM app WHERE app_name = '${APP_NAME}');
+COMMIT;
+SQL
+
+if su - postgres -c "$PSQL -q -d appcenter -f '$SQL_FILE'" >/dev/null 2>&1; then
+  log_msg "appcenter：打开方式已改为 url 型，桌面图标关联已清除"
+else
+  log_msg "⚠ appcenter 修正失败（ac 库结构可能已变），跳过"
+fi
+
+# ── trim_sac 库：entry.open_type = url，删掉 .main 入口 ──
+cat > "$SQL_FILE" <<SQL
+BEGIN;
+UPDATE entry SET open_type = 'url', updated_at = now()
+ WHERE app_name = '${APP_NAME}' AND service_name LIKE '${APP_NAME}.open%';
+DELETE FROM entry
+ WHERE app_name = '${APP_NAME}' AND service_name = '${APP_NAME}.main';
+UPDATE user_desktop_entry SET is_deleted = true, updated_at = now()
+ WHERE app_name = '${APP_NAME}';
+COMMIT;
+SQL
+
+if su - postgres -c "$PSQL -q -d trim_sac -f '$SQL_FILE'" >/dev/null 2>&1; then
+  log_msg "trim_sac：入口已改为 url 型，桌面图标入口已删除"
+else
+  log_msg "⚠ trim_sac 修正失败（sac 库结构可能已变），跳过"
+fi
+
+rm -f "$SQL_FILE" 2>/dev/null
+exit 0
