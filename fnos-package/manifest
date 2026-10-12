@@ -1,0 +1,35 @@
+appname=fnos-file-viewer
+version=1.0.3
+display_name=文件预览
+desc=在飞牛里直接预览文件，不用下载到本地：Word / Excel / PPT / PDF / 图片 / 音视频 / 压缩包 / CAD / 3D 模型 / 代码等 200 多种格式。<br>解析与渲染全部在浏览器本地完成，文件不上传、不出内网。<br><b>在文件管理器里双击文件，选「用文件预览打开」即可。</b>
+source=thirdparty
+platform=all
+
+maintainer=fnos-file-viewer
+maintainer_url=https://github.com/flyfish-dev/file-viewer
+
+# 原生应用：使用飞牛系统自带的 Node.js v22 运行时，不需要 Docker
+install_dep_apps=nodejs_v22
+
+# 不声明 os_min_version：对系统版本的真实要求已经由 install_dep_apps 表达
+# （nodejs_v22 运行时本身就是版本门槛）。写死一个版本号只会在系统版本号
+# 格式不一致时误判为「不符合系统要求」而拒绝安装，收益为零。
+
+desktop_uidir=ui
+# ★ 刻意**不声明** desktop_applaunchname：本应用已经取消桌面图标，
+#   只保留「文件管理器里双击 → 打开方式」这一条入口。
+#   声明了它（哪怕指向一个不存在的 .main 服务）会让应用中心在桌面上
+#   生成一个点不开的空图标 —— 正是用户要求去掉的东西。
+
+service_port=8030
+checkport=true
+ctl_stop=true
+
+# 隐藏「授权目录」设置项（true = 不显示）。
+# 本应用是 root 权限版（config/privilege 里 run-as: root），进程直接读全部
+# 存储空间，授权目录这个概念已经没有意义 —— 摆在那里只会让人以为
+# "还得先配目录才能打开文件"。
+disable_authorization_path=true
+
+# 注意：manifest 是 INI 格式，值里不能出现 ; 或 #，会被当成注释截断
+changelog=1.0.3 按需求收窄应用形态。① 取消桌面应用图标：删除 .main 桌面入口（manifest 也不再声明 desktop_applaunchname），应用只保留「在文件管理器里双击文件 → 用文件预览打开」这一条入口。② 取消本地文件浏览：去掉应用内的文件树 / 目录列表 / 路径面包屑，页面只做"打开传进来的那个文件"；③ 去掉应用内部的 iframe 嵌套层，页面就是预览本身。④ 「打开方式」入口改为 url 型：飞牛前端对 url 型走 window.open（用浏览器打开），iframe 型才会嵌在桌面窗口里 —— 现在双击文件是在浏览器新标签页里预览，不再占用桌面窗口。1.0.2 修复 ZIP 等压缩包无法预览（显示「0 个文件」），以及打开压缩包时会莫名弹出迅雷下载的问题。原因是预览请求的地址形如 /api/file/xxx.zip，而下载管理器（迅雷、IDM 这类）是按 URL 路径的扩展名嗅探的：路径以 .zip / .exe / .iso 结尾时请求会被它劫持，页面只拿到一个空响应。现在预览地址改成不含扩展名的 /api/file?path=…，文件名交给组件的 filename 属性，这个改动对所有格式生效。1.0.1 修复安装被回滚（应用中心只报「服务异常」）：「打开方式」声明的 225 个扩展名序列化后超过飞牛数据库 app_service.file_types 列的 varchar(500) 上限，安装写到服务表那一步整体回滚，还留下一个占着 8030 端口的孤儿进程。现改为把扩展名装箱成 4 条互不重叠的服务，每条不超过 479 字符，225 个格式一个没少。1.0.0 首个版本：基于 file-viewer v3.1.2（Apache-2.0）构建，覆盖 Office / PDF / 图片 / 音视频 / 压缩包 / CAD / 3D / 代码等 200 多种格式，渲染全部在浏览器本地完成，文件不上传、不出内网。root 权限版，装完不需要配置授权目录。
