@@ -1,16 +1,26 @@
 {
-  "name": "siyuan-localfs",
-  "version": "1.12.11",
-  "description": "在思源笔记里浏览「跑着思源的那台机器」上的全部存储空间：侧边栏文件树、内置 DWG/DXF 预览、Office 在线预览与编辑",
+  "name": "fnos-file-viewer",
   "private": true,
-  "type": "commonjs",
+  "version": "1.0.3",
+  "type": "module",
+  "description": "fnOS（飞牛私有云）原生「文件预览」应用 —— 基于 file-viewer，纯浏览器端解析渲染",
   "scripts": {
-    "build": "node tools/build.js",
-    "build:repo": "node tools/build.js --repo",
-    "pack": "node tools/pack.js --rebuild",
-    "pack:only": "node tools/pack.js",
-    "check": "node tools/build.js --repo"
+    "vendor": "node scripts/prepare-vendor.mjs",
+    "vendor:force": "node scripts/prepare-vendor.mjs --force",
+    "vendor:slim": "node scripts/prepare-vendor.mjs --slim",
+    "ui-config": "node scripts/gen-ui-config.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "start": "node server/index.mjs",
+    "test": "node scripts/test-path-utils.mjs && node scripts/test-formats.mjs",
+    "e2e": "node scripts/e2e-local.mjs",
+    "smoke": "node scripts/smoke-browser.mjs",
+    "verify:fpk": "node scripts/verify-fpk.mjs",
+    "fpk": "node scripts/build-fpk.mjs",
+    "fpk:slim": "node scripts/build-fpk.mjs --slim"
   },
-  "author": "zhangtao",
-  "license": "MIT"
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0",
+  "comment": "运行期零第三方依赖：server/ 只用 node 内置模块，web/ 是手写静态文件，vendor/ 是 file-viewer 的产物。"
 }
