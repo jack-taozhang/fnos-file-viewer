@@ -9,14 +9,14 @@
 预览能力（274 个扩展名 / 47 条链路）全部来自
 [flyfish-dev/file-viewer](https://github.com/flyfish-dev/file-viewer)。
 
-**当前锁定版本：`3.1.2`**（定义在 `scripts/prepare-vendor.mjs` 第 44 行的 `VERSION`）。
+**当前锁定版本：`3.2.2`**（定义在 `scripts/prepare-vendor.mjs` 第 44 行的 `VERSION`）。
 
 ### 升级步骤
 
 ```bash
 # 1) 改版本号（也可以不改文件、直接用环境变量试跑）
-#    scripts/prepare-vendor.mjs:44   const VERSION = process.env.FILE_VIEWER_VERSION || '3.1.2'
-FILE_VIEWER_VERSION=3.2.0 npm run vendor:force
+#    scripts/prepare-vendor.mjs:44   const VERSION = process.env.FILE_VIEWER_VERSION || '3.2.2'
+FILE_VIEWER_VERSION=3.2.2 npm run vendor:force
 
 # 2) 跑格式契约测试 —— 上游新增/改名扩展名时这里会红
 npm test
