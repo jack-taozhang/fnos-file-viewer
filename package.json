@@ -1,7 +1,7 @@
 {
   "name": "fnos-file-viewer",
   "private": true,
-  "version": "1.0.3",
+  "version": "3.2.2",
   "type": "module",
   "description": "fnOS（飞牛私有云）原生「文件预览」应用 —— 基于 file-viewer，纯浏览器端解析渲染",
   "scripts": {
