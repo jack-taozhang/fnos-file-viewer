@@ -6,7 +6,7 @@
 PDF / OFD、图片、音视频、压缩包、邮件、代码与结构化数据、CAD 图纸、3D 模型、思维导图……
 **解析和渲染全部在浏览器本地完成，文件不上传、不出内网。**
 
-预览能力来自 [flyfish-dev/file-viewer](https://github.com/flyfish-dev/file-viewer)（v3.1.2，
+预览能力来自 [flyfish-dev/file-viewer](https://github.com/flyfish-dev/file-viewer)（v3.2.2，
 274 个扩展名 / 47 条预览链路）。本仓库是把它包成飞牛原生应用的那一层。
 
 ---
@@ -64,7 +64,7 @@ npm run smoke     # 起 headless Chrome 确认"真的渲染出来了"，12 项
 
 # 4) 打包成 .fpk
 npm run fpk
-# → dist-package/fnos-file-viewer-1.0.3.fpk
+# → dist-package/fnos-file-viewer-3.2.2.fpk
 ```
 
 装到飞牛：**应用中心 → 手动安装 → 选择那个 .fpk**。装完不需要任何配置。
