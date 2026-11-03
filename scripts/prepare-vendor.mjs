@@ -17,7 +17,7 @@
  *   node scripts/prepare-vendor.mjs            # 缺什么补什么
  *   node scripts/prepare-vendor.mjs --force    # 强制重新下载解包
  *   node scripts/prepare-vendor.mjs --slim     # 瘦身（见下）
- *   node scripts/prepare-vendor.mjs --local .cache/web-full-3.1.2.tgz   # 用本地 tgz
+ *   node scripts/prepare-vendor.mjs --local .cache/web-full-3.2.2.tgz   # 用本地 tgz
  *
  * --slim 说明：默认（full）是官方支持且验证过的部署形态，**不要轻易改**。
  * slim 只是给"实在嫌 233MB 太大"的人一个折中：删掉几块最大的可选资产，
@@ -41,7 +41,7 @@ const DIST = path.join(VENDOR, 'dist')
 const CACHE = path.join(ROOT, '.cache')
 
 /** 想升级预览组件就改这里（或设 FILE_VIEWER_VERSION 环境变量） */
-const VERSION = process.env.FILE_VIEWER_VERSION || '3.1.2'
+const VERSION = process.env.FILE_VIEWER_VERSION || '3.2.2'
 const PACKAGE = '@file-viewer/web-full'
 
 /** 国内优先，失败再走官方源 —— 实测两者速度差 50 倍 */
