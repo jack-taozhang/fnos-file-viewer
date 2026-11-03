@@ -213,7 +213,7 @@ async function main() {
     const health = await waitHealthy()
     await ok('解包后的服务能起来（说明相对路径解析在安装布局下成立）', () => {
       assert.equal(health.app, 'fnos-file-viewer')
-      assert.equal(health.viewer, '3.1.2')
+      assert.equal(health.viewer, '3.2.2')
     })
 
     const cfg = await (await fetch(`${BASE}/api/config`)).json()
