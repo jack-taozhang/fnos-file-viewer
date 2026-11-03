@@ -256,7 +256,13 @@
     if (!state.config.assets?.viewerReady) {
       dom.emptyHint.textContent = '⚠ 预览组件没有部署完整（/file-viewer/dist 缺失）。请重新安装完整安装包。'
     } else if (state.config.viewer) {
-      dom.emptyHint.textContent = `预览组件 file-viewer v${state.config.viewer} · 应用 v${state.config.version}`
+      // ★ 应用版本号已与上游 file-viewer 对齐（都是 3.2.2），
+      //   所以这里只报一个版本号；两个都显示会出现「v3.2.2 · 应用 v3.2.2」。
+      //   万一哪天两者又分叉（应用有自己的补丁版本），这行会自动显示两个。
+      const same = state.config.viewer === state.config.version
+      dom.emptyHint.textContent = same
+        ? `file-viewer v${state.config.viewer}`
+        : `预览组件 file-viewer v${state.config.viewer} · 应用 v${state.config.version}`
     }
 
     if (!window.customElements || !customElements.get(VIEWER_TAG)) {
